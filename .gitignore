@@ -1,0 +1,55 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+.pnpm-debug.log*
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+!apps/**/*.example.key
+kubeconfig*
+
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+*.tfvars
+!*.tfvars.example
+.terraformrc
+terraform.rc
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraform.lock.hcl
+
+# Helm
+**/charts/*.tgz
+**/Chart.lock
+
+# Kubernetes / kubeconfig
+*.kubeconfig
+
+# Coverage / test output
+coverage/
+.nyc_output/
+
+# Build output
+dist/
+build/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# Logs
+*.log
+logs/
