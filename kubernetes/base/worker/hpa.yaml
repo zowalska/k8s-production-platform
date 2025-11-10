@@ -1,0 +1,40 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: worker
+  labels:
+    app.kubernetes.io/name: worker
+    app.kubernetes.io/part-of: platform
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: worker
+  minReplicas: 2
+  maxReplicas: 8
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Percent
+          value: 25
+          periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 30
+# NOTE: this CPU-based HPA is intentionally conservative. The primary scaling
+# signal for `worker` is queue backlog (BullMQ waiting jobs in Redis), which
+# is handled by a KEDA ScaledObject instead - see autoscaling/keda/. KEDA
+# replaces this HPA's `scaleTargetRef` management once installed (KEDA creates
+# its own HPA under the hood), so both are shown here for reference but only
+# one should be active per environment - see autoscaling/README.md.
