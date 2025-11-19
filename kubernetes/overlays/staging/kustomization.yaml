@@ -1,0 +1,24 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: platform-staging
+
+resources:
+  - namespace.yaml
+  - ../../base
+
+labels:
+  - pairs:
+      app.kubernetes.io/instance: platform-staging
+      environment: staging
+    includeSelectors: false
+
+patches:
+  - path: patch-deployment-api.yaml
+  - path: patch-deployment-worker.yaml
+
+images:
+  - name: ghcr.io/zowalska/k8s-production-platform-api
+    newTag: staging
+  - name: ghcr.io/zowalska/k8s-production-platform-worker
+    newTag: staging

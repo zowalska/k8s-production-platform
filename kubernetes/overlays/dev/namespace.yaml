@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: platform-dev
+  labels:
+    app.kubernetes.io/part-of: platform
+    environment: dev
+    # Referenced by NetworkPolicies elsewhere (e.g. monitoring namespace
+    # selector) via the standard kubernetes.io/metadata.name label.
