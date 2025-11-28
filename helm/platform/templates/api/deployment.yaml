@@ -1,0 +1,101 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "platform.fullname" . }}-api
+  labels:
+    {{- include "platform.labels" . | nindent 4 }}
+    app.kubernetes.io/name: api
+spec:
+  {{- if not .Values.api.autoscaling.enabled }}
+  replicas: {{ .Values.api.replicaCount }}
+  {{- end }}
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      {{- include "platform.selectorLabels" (dict "root" $ "component" "api") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "platform.labels" . | nindent 8 }}
+        {{- include "platform.selectorLabels" (dict "root" $ "component" "api") | nindent 8 }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/api/configmap.yaml") . | sha256sum }}
+        prometheus.io/scrape: "true"
+        prometheus.io/port: {{ .Values.api.containerPort | quote }}
+        prometheus.io/path: /metrics
+        {{- if .Values.api.vault.enabled }}
+        vault.hashicorp.com/agent-inject: "true"
+        vault.hashicorp.com/role: {{ .Values.api.vault.role | quote }}
+        vault.hashicorp.com/agent-inject-secret-config: {{ .Values.api.vault.secretPath | quote }}
+        vault.hashicorp.com/agent-inject-template-config: |
+          {{- .Values.api.vault.template | nindent 10 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ .Values.api.serviceAccount.name }}
+      automountServiceAccountToken: {{ .Values.api.vault.enabled }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      {{- with .Values.api.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: api
+          image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag }}"
+          imagePullPolicy: {{ .Values.api.image.pullPolicy }}
+          {{- if .Values.api.vault.enabled }}
+          # Vault Agent (injected as an init/sidecar container by the Vault
+          # Agent Injector mutating webhook) renders /vault/secrets/config
+          # with DATABASE_URL / REDIS_URL / JWT_SECRET before this container
+          # is considered ready; source it, then exec the app.
+          command: ["sh", "-c"]
+          args:
+            - |
+              . /vault/secrets/config
+              exec node src/index.js
+          {{- end }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.api.containerPort }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "platform.fullname" . }}-api-config
+            {{- if not .Values.api.vault.enabled }}
+            - secretRef:
+                name: {{ include "platform.fullname" . }}-api-secrets
+            {{- end }}
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            failureThreshold: 3
+          resources:
+            {{- toYaml .Values.api.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

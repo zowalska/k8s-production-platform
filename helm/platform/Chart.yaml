@@ -1,0 +1,34 @@
+apiVersion: v2
+name: platform
+description: >
+  Umbrella Helm chart for the k8s-production-platform reference architecture:
+  deploys the `api` and `worker` services, and (optionally, per environment)
+  PostgreSQL and Redis as bundled dependencies.
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+home: https://github.com/zowalska/k8s-production-platform
+sources:
+  - https://github.com/zowalska/k8s-production-platform
+maintainers:
+  - name: zowalska
+keywords:
+  - kubernetes
+  - platform
+  - reference-architecture
+
+# PostgreSQL and Redis are only needed as in-cluster dependencies for
+# environments that don't use managed AWS services (RDS/ElastiCache,
+# provisioned by ../../terraform). Toggle with `postgresql.enabled` /
+# `redis.enabled` in values-<env>.yaml - see values-dev.yaml (both enabled)
+# vs values-staging.yaml/values-prod.yaml (both disabled, pointing instead at
+# externalDatabase/externalRedis).
+dependencies:
+  - name: postgresql
+    version: "15.5.x"
+    repository: "https://charts.bitnami.com/bitnami"
+    condition: postgresql.enabled
+  - name: redis
+    version: "19.6.x"
+    repository: "https://charts.bitnami.com/bitnami"
+    condition: redis.enabled

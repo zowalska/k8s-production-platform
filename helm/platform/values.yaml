@@ -1,0 +1,169 @@
+# Default values for the platform umbrella chart.
+# Environment-specific overrides live in values-dev.yaml / values-staging.yaml
+# / values-prod.yaml, applied on top of this file via `-f values.yaml -f values-<env>.yaml`.
+
+global:
+  environment: dev
+  namespace: platform-dev
+  imagePullSecrets: []
+
+api:
+  replicaCount: 2
+  image:
+    repository: ghcr.io/zowalska/k8s-production-platform-api
+    tag: latest
+    pullPolicy: IfNotPresent
+  serviceAccount:
+    create: true
+    name: api
+  service:
+    port: 80
+    metricsPort: 3000
+  containerPort: 3000
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+  podDisruptionBudget:
+    minAvailable: 1
+  # Optional raw affinity block (e.g. pod anti-affinity across zones) -
+  # left empty by default, set in values-prod.yaml.
+  affinity: {}
+  # Non-secret runtime configuration, rendered into a ConfigMap.
+  env:
+    NODE_ENV: production
+    PORT: "3000"
+    QUEUE_NAME: platform-jobs
+    LOG_LEVEL: info
+  # HashiCorp Vault Agent Injector integration - see security/vault/.
+  # When enabled, the pod is annotated so the injector sidecar renders
+  # /vault/secrets/config (DATABASE_URL, REDIS_URL, JWT_SECRET), which the
+  # container sources before starting the app. When disabled, secrets instead
+  # come from a plain Kubernetes Secret (see secrets.* below) - useful for a
+  # quick local/dev cluster without Vault installed.
+  vault:
+    enabled: true
+    role: platform-dev-api
+    secretPath: secret/data/platform/dev/api
+    template: |
+      {{- with secret "secret/data/platform/dev/api" -}}
+      export DATABASE_URL="{{ .Data.data.DATABASE_URL }}"
+      export REDIS_URL="{{ .Data.data.REDIS_URL }}"
+      export JWT_SECRET="{{ .Data.data.JWT_SECRET }}"
+      {{- end -}}
+
+worker:
+  replicaCount: 2
+  image:
+    repository: ghcr.io/zowalska/k8s-production-platform-worker
+    tag: latest
+    pullPolicy: IfNotPresent
+  serviceAccount:
+    create: true
+    name: worker
+  metricsPort: 3001
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+  # A basic CPU-based HPA is provided for completeness, but the primary
+  # scaling signal for worker replicas is queue backlog, handled by the KEDA
+  # ScaledObject in autoscaling/keda/ once KEDA is installed (see
+  # autoscaling/README.md for how the two interact).
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 8
+    targetCPUUtilizationPercentage: 70
+  podDisruptionBudget:
+    minAvailable: 1
+  affinity: {}
+  env:
+    NODE_ENV: production
+    METRICS_PORT: "3001"
+    QUEUE_NAME: platform-jobs
+    WORKER_CONCURRENCY: "5"
+    LOG_LEVEL: info
+  vault:
+    enabled: true
+    role: platform-dev-worker
+    secretPath: secret/data/platform/dev/worker
+    template: |
+      {{- with secret "secret/data/platform/dev/worker" -}}
+      export DATABASE_URL="{{ .Data.data.DATABASE_URL }}"
+      export REDIS_URL="{{ .Data.data.REDIS_URL }}"
+      {{- end -}}
+
+# Fallback plain-Kubernetes-Secret values, only rendered when the
+# corresponding api/worker `vault.enabled` is false.
+secrets:
+  api:
+    databaseUrl: "postgres://platform:platform@{{ .Release.Name }}-postgresql:5432/platform"
+    redisUrl: "redis://{{ .Release.Name }}-redis-master:6379"
+    jwtSecret: "local-dev-secret"
+  worker:
+    databaseUrl: "postgres://platform:platform@{{ .Release.Name }}-postgresql:5432/platform"
+    redisUrl: "redis://{{ .Release.Name }}-redis-master:6379"
+
+# Networking
+networkPolicy:
+  enabled: true
+
+# In-cluster PostgreSQL/Redis via Bitnami subcharts - enabled by default for
+# a fully self-contained dev environment. Disabled in staging/prod in favor
+# of Terraform-managed RDS/ElastiCache (see externalDatabase/externalRedis).
+postgresql:
+  enabled: true
+  auth:
+    username: platform
+    password: platform
+    database: platform
+  primary:
+    persistence:
+      size: 2Gi
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+
+redis:
+  enabled: true
+  architecture: standalone
+  auth:
+    enabled: false
+  master:
+    persistence:
+      size: 1Gi
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+
+# Used by api/worker when postgresql.enabled=false / redis.enabled=false
+# (staging/prod). Vault holds the actual DATABASE_URL/REDIS_URL in that case;
+# these values exist mainly for documentation / non-Vault fallback rendering.
+externalDatabase:
+  host: ""
+  port: 5432
+  database: platform
+externalRedis:
+  host: ""
+  port: 6379
+
+ingress:
+  enabled: false
+  className: nginx
+  host: api.dev.platform.example.com
+  tls: true

@@ -1,0 +1,22 @@
+Platform ({{ .Values.global.environment }}) deployed as release "{{ .Release.Name }}" in namespace "{{ .Release.Namespace }}".
+
+api:    {{ .Values.api.replicaCount }} replica(s) (autoscaling {{ if .Values.api.autoscaling.enabled }}enabled ({{ .Values.api.autoscaling.minReplicas }}-{{ .Values.api.autoscaling.maxReplicas }}){{ else }}disabled{{ end }})
+worker: {{ .Values.worker.replicaCount }} replica(s) (autoscaling {{ if .Values.worker.autoscaling.enabled }}enabled ({{ .Values.worker.autoscaling.minReplicas }}-{{ .Values.worker.autoscaling.maxReplicas }}){{ else }}disabled{{ end }})
+
+{{- if .Values.postgresql.enabled }}
+PostgreSQL: bundled (Bitnami subchart, release "{{ .Release.Name }}-postgresql")
+{{- else }}
+PostgreSQL: external at {{ .Values.externalDatabase.host }}:{{ .Values.externalDatabase.port }} (see terraform/modules/rds)
+{{- end }}
+
+{{- if .Values.redis.enabled }}
+Redis: bundled (Bitnami subchart, release "{{ .Release.Name }}-redis")
+{{- else }}
+Redis: external at {{ .Values.externalRedis.host }}:{{ .Values.externalRedis.port }} (see terraform/modules/elasticache)
+{{- end }}
+
+Secrets: {{ if .Values.api.vault.enabled }}delivered via the HashiCorp Vault Agent Injector (see security/vault/){{ else }}rendered as plain Kubernetes Secrets from values (dev-only fallback){{ end }}
+
+Check rollout status with:
+  kubectl -n {{ .Release.Namespace }} rollout status deployment/{{ include "platform.fullname" . }}-api
+  kubectl -n {{ .Release.Namespace }} rollout status deployment/{{ include "platform.fullname" . }}-worker

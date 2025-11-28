@@ -1,0 +1,79 @@
+# Overrides for the "staging" environment - points at Terraform-managed RDS
+# Postgres / ElastiCache Redis instead of bundling them in-cluster. Applied
+# as:
+#   helm upgrade --install platform-staging ./helm/platform -n platform-staging \
+#     -f values.yaml -f values-staging.yaml
+
+global:
+  environment: staging
+  namespace: platform-staging
+
+api:
+  replicaCount: 2
+  image:
+    tag: staging
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 6
+  vault:
+    enabled: true
+    role: platform-staging-api
+    secretPath: secret/data/platform/staging/api
+    template: |
+      {{- with secret "secret/data/platform/staging/api" -}}
+      export DATABASE_URL="{{ .Data.data.DATABASE_URL }}"
+      export REDIS_URL="{{ .Data.data.REDIS_URL }}"
+      export JWT_SECRET="{{ .Data.data.JWT_SECRET }}"
+      {{- end -}}
+
+worker:
+  replicaCount: 2
+  image:
+    tag: staging
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 6
+  vault:
+    enabled: true
+    role: platform-staging-worker
+    secretPath: secret/data/platform/staging/worker
+    template: |
+      {{- with secret "secret/data/platform/staging/worker" -}}
+      export DATABASE_URL="{{ .Data.data.DATABASE_URL }}"
+      export REDIS_URL="{{ .Data.data.REDIS_URL }}"
+      {{- end -}}
+
+# Use Terraform outputs (terraform/environments/staging) for these two hosts.
+postgresql:
+  enabled: false
+redis:
+  enabled: false
+externalDatabase:
+  host: "platform-staging.CHANGE_ME.eu-central-1.rds.amazonaws.com"
+  port: 5432
+  database: platform
+externalRedis:
+  host: "platform-staging.CHANGE_ME.cache.amazonaws.com"
+  port: 6379
+
+ingress:
+  enabled: true
+  className: nginx
+  host: api.staging.platform.example.com
+  tls: true

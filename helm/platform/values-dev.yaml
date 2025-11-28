@@ -1,0 +1,71 @@
+# Overrides for the "dev" environment - fully self-contained (bundles
+# PostgreSQL + Redis in-cluster), small resource footprint. Applied as:
+#   helm upgrade --install platform-dev ./helm/platform -n platform-dev \
+#     -f values.yaml -f values-dev.yaml
+
+global:
+  environment: dev
+  namespace: platform-dev
+
+api:
+  replicaCount: 1
+  image:
+    tag: dev
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 250m
+      memory: 128Mi
+  autoscaling:
+    enabled: true
+    minReplicas: 1
+    maxReplicas: 3
+  vault:
+    enabled: true
+    role: platform-dev-api
+    secretPath: secret/data/platform/dev/api
+    template: |
+      {{- with secret "secret/data/platform/dev/api" -}}
+      export DATABASE_URL="{{ .Data.data.DATABASE_URL }}"
+      export REDIS_URL="{{ .Data.data.REDIS_URL }}"
+      export JWT_SECRET="{{ .Data.data.JWT_SECRET }}"
+      {{- end -}}
+
+worker:
+  replicaCount: 1
+  image:
+    tag: dev
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 250m
+      memory: 128Mi
+  autoscaling:
+    enabled: true
+    minReplicas: 1
+    maxReplicas: 3
+  vault:
+    enabled: true
+    role: platform-dev-worker
+    secretPath: secret/data/platform/dev/worker
+    template: |
+      {{- with secret "secret/data/platform/dev/worker" -}}
+      export DATABASE_URL="{{ .Data.data.DATABASE_URL }}"
+      export REDIS_URL="{{ .Data.data.REDIS_URL }}"
+      {{- end -}}
+
+postgresql:
+  enabled: true
+  primary:
+    persistence:
+      size: 1Gi
+
+redis:
+  enabled: true
+
+ingress:
+  enabled: false
