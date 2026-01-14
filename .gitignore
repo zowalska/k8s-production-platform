@@ -26,7 +26,8 @@ override.tf
 override.tf.json
 *_override.tf
 *_override.tf.json
-.terraform.lock.hcl
+# .terraform.lock.hcl is intentionally NOT ignored - it should be committed
+# for reproducible provider version resolution (HashiCorp's own guidance).
 
 # Helm
 **/charts/*.tgz

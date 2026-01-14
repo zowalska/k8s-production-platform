@@ -1,0 +1,9 @@
+region   = "eu-central-1"
+vpc_cidr = "10.30.0.0/16"
+
+# Optional override if your organization needs a pre-approved bucket name.
+loki_bucket_name_override = null
+
+extra_tags = {
+  Owner = "platform-team"
+}
