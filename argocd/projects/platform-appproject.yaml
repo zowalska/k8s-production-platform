@@ -1,0 +1,62 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: platform
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  description: Platform workloads and shared controllers for the k8s-production-platform repo.
+  sourceRepos:
+    - https://github.com/zowalska/k8s-production-platform.git
+    - https://charts.bitnami.com/bitnami
+    - https://prometheus-community.github.io/helm-charts
+    - https://grafana.github.io/helm-charts
+    - https://helm.releases.hashicorp.com
+    - https://kedacore.github.io/charts
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: platform-dev
+    - server: https://kubernetes.default.svc
+      namespace: platform-staging
+    - server: https://kubernetes.default.svc
+      namespace: platform-prod
+    - server: https://kubernetes.default.svc
+      namespace: monitoring
+    - server: https://kubernetes.default.svc
+      namespace: vault
+    - server: https://kubernetes.default.svc
+      namespace: keda
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRole
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRoleBinding
+    - group: admissionregistration.k8s.io
+      kind: MutatingWebhookConfiguration
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+    - group: apiregistration.k8s.io
+      kind: APIService
+    - group: scheduling.k8s.io
+      kind: PriorityClass
+  # Namespaced objects are still confined by the destinations above.
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"
+  orphanedResources:
+    warn: true
+  roles:
+    - name: platform-admins
+      description: Platform operators allowed to sync and override applications in this project.
+      groups:
+        - platform-admins
+      policies:
+        - p, proj:platform:platform-admins, applications, get, platform/*, allow
+        - p, proj:platform:platform-admins, applications, sync, platform/*, allow
+        - p, proj:platform:platform-admins, applications, override, platform/*, allow
+        - p, proj:platform:platform-admins, logs, get, platform/*, allow

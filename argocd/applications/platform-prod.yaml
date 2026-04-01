@@ -1,0 +1,28 @@
+# Prod heals drift on managed objects but leaves prune disabled so deletions stay explicit and reviewable.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: platform-prod
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "12"
+spec:
+  project: platform
+  source:
+    repoURL: https://github.com/zowalska/k8s-production-platform.git
+    targetRevision: main
+    path: helm/platform
+    helm:
+      releaseName: platform
+      valueFiles:
+        - values.yaml
+        - values-prod.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: platform-prod
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
