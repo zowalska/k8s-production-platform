@@ -1,0 +1,14 @@
+# Expect one Secret per application namespace named `platform-redis-keda-auth` with `host` and `password` keys.
+# Use the namespace-qualified Redis DNS name as `host`, e.g. `platform-redis-master.platform-dev.svc.cluster.local`.
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: redis-trigger-auth
+spec:
+  secretTargetRef:
+    - parameter: host
+      name: platform-redis-keda-auth
+      key: host
+    - parameter: password
+      name: platform-redis-keda-auth
+      key: password

@@ -1,0 +1,34 @@
+cloudProvider: aws
+replicaCount: 2
+
+autoDiscovery:
+  # Replace this with the real EKS cluster name. If namespaces share one cluster, install this once with that shared name.
+  clusterName: platform-<env>
+
+awsRegion: eu-central-1
+
+rbac:
+  create: true
+  serviceAccount:
+    create: true
+    name: cluster-autoscaler
+    annotations:
+      # Terraform should render the real IRSA role ARN here.
+      eks.amazonaws.com/role-arn: "<CLUSTER_AUTOSCALER_IRSA_ROLE_ARN>"
+
+extraArgs:
+  balance-similar-node-groups: "true"
+  expander: least-waste
+  skip-nodes-with-local-storage: "false"
+  skip-nodes-with-system-pods: "false"
+  scale-down-delay-after-add: 10m
+  scale-down-unneeded-time: 10m
+  scale-down-utilization-threshold: "0.5"
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 300Mi
+  limits:
+    cpu: 300m
+    memory: 600Mi

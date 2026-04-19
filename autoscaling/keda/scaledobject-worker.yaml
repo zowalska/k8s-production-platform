@@ -1,0 +1,39 @@
+# This ScaledObject targets the Deployment produced by the Helm chart -
+# Argo CD's Application manifests (argocd/applications/platform-*.yaml) all
+# install the chart with `helm.releaseName: platform` (only the destination
+# namespace differs between dev/staging/prod), so the rendered Deployment
+# name is the constant "platform-worker" in every environment. Apply this
+# same file into each namespace: `kubectl apply -n platform-<env> -f scaledobject-worker.yaml`.
+# (The kubernetes/base Kustomize path instead names it plain "worker" - that
+# path doesn't wire up KEDA, only the CPU-based HPA, so no change needed there.)
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: worker-queue-scaler
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: platform-worker
+  pollingInterval: 30
+  cooldownPeriod: 120
+  # Prod usually keeps one warm worker; lower environments can patch this to 0 if cold starts are acceptable.
+  minReplicaCount: 1
+  maxReplicaCount: 20
+  advanced:
+    # KEDA creates the HPA it needs, so avoid applying a second standalone worker HPA in the same overlay.
+    horizontalPodAutoscalerConfig:
+      name: worker-keda
+  triggers:
+    - type: redis
+      metadata:
+        # Must match config.js / apps/worker's QUEUE_NAME ("platform-jobs" -
+        # BullMQ rejects queue names containing ":", see apps/worker/src/config.js).
+        listName: platform-jobs
+        listLength: "10"
+        activationListLength: "1"
+        port: "6379"
+        databaseIndex: "0"
+        enableTLS: "false"
+      authenticationRef:
+        name: redis-trigger-auth

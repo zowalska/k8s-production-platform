@@ -1,0 +1,48 @@
+clusterName: platform
+
+crds:
+  install: true
+
+# Empty means cluster-wide watch, which lets one KEDA control plane manage dev, staging, and prod namespaces.
+watchNamespace: ""
+
+operator:
+  replicaCount: 2
+
+metricsServer:
+  enabled: true
+  replicaCount: 2
+
+webhooks:
+  replicaCount: 2
+
+resources:
+  operator:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  metricServer:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  webhooks:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
+
+podDisruptionBudget:
+  operator:
+    minAvailable: 1
+  metricServer:
+    minAvailable: 1
+  webhooks:
+    minAvailable: 1

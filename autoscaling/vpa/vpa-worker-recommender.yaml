@@ -1,0 +1,22 @@
+# Leave namespace unset so overlays can stamp platform-dev, platform-staging, or platform-prod.
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: worker-vpa
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: worker
+  updatePolicy:
+    # `Off` keeps this recommendation-only; CPU/memory HPA and automatic VPA updates fight over pod requests.
+    updateMode: "Off"
+  resourcePolicy:
+    containerPolicies:
+      - containerName: "*"
+        minAllowed:
+          cpu: 100m
+          memory: 128Mi
+        maxAllowed:
+          cpu: "2"
+          memory: 2Gi
