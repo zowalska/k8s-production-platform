@@ -1,0 +1,87 @@
+# IMPORTANT:
+# - `platform-dev` is an application environment name, not a reason to enable Vault's insecure `server.dev.enabled` mode.
+# - Keep `server.dev.enabled: false` in every environment.
+# - If a smaller non-prod footprint is needed, use proper standalone storage/unseal settings instead of Vault's ephemeral `-dev` mode.
+global:
+  enabled: true
+  # Swap to mounted TLS certs plus `tls_disable = 0` in the listener once cluster PKI is in place.
+  tlsDisable: true
+
+injector:
+  enabled: true
+  replicas: 2
+  metrics:
+    enabled: true
+  logLevel: info
+  webhook:
+    # Fail closed so pods that require injected secrets do not start half-configured.
+    failurePolicy: Fail
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+server:
+  enabled: true
+  dev:
+    enabled: false
+  standalone:
+    enabled: false
+  logLevel: info
+  logFormat: json
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: "1"
+      memory: 2Gi
+  dataStorage:
+    enabled: true
+    size: 20Gi
+  auditStorage:
+    enabled: true
+    size: 10Gi
+  authDelegator:
+    enabled: true
+  serviceAccount:
+    create: true
+    name: vault
+  ha:
+    enabled: true
+    replicas: 3
+    raft:
+      enabled: true
+      setNodeId: true
+      config: |
+        ui = true
+
+        listener "tcp" {
+          tls_disable = 1
+          address = "[::]:8200"
+          cluster_address = "[::]:8201"
+          telemetry {
+            unauthenticated_metrics_access = "true"
+          }
+        }
+
+        storage "raft" {
+          path = "/vault/data"
+        }
+
+        service_registration "kubernetes" {}
+
+        # Add a `seal` stanza (for example AWS KMS) or use manual unseal keys before production cutover.
+  readinessProbe:
+    enabled: true
+  livenessProbe:
+    enabled: true
+    path: "/v1/sys/health?standbyok=true"
+  terminationGracePeriodSeconds: 30
+
+ui:
+  enabled: true
+  serviceType: ClusterIP
