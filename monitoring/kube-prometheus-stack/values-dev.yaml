@@ -1,0 +1,173 @@
+# Development profile for kube-prometheus-stack.
+# Lower retention and smaller resources keep the stack lightweight while
+# still matching the production topology and CRD workflow.
+
+crds:
+  enabled: true
+
+prometheusOperator:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
+
+alertmanager:
+  enabled: true
+  config:
+    global:
+      resolve_timeout: 5m
+    route:
+      group_by:
+        - alertname
+        - namespace
+        - severity
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 4h
+      receiver: platform-alerts
+    receivers:
+      - name: platform-alerts
+        slack_configs:
+          - channel: "#platform-alerts"
+            api_url_file: /etc/alertmanager/secrets/alertmanager-slack-webhook/url
+            send_resolved: true
+            title: '{{ template "slack.default.title" . }}'
+            text: '{{ template "slack.default.text" . }}'
+        webhook_configs:
+          - url: https://alerts.dev.platform.example.com/webhook # replace per environment
+            send_resolved: true
+    inhibit_rules:
+      - source_matchers:
+          - severity="critical"
+        target_matchers:
+          - severity=~"warning|info"
+        equal:
+          - alertname
+          - namespace
+  alertmanagerSpec:
+    replicas: 1
+    retention: 120h
+    secrets:
+      - alertmanager-slack-webhook
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 250m
+        memory: 256Mi
+    storage:
+      volumeClaimTemplate:
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          # Omit storageClassName in dev to use the cluster default provisioner.
+          resources:
+            requests:
+              storage: 2Gi
+
+prometheus:
+  prometheusSpec:
+    replicas: 1
+    retention: 3d
+    retentionSize: 8GB
+    scrapeInterval: 30s
+    evaluationInterval: 30s
+    walCompression: true
+    externalLabels:
+      environment: dev
+      cluster: platform-dev
+    # Discover ServiceMonitors and rules managed outside of the Helm release.
+    serviceMonitorSelectorNilUsesHelmValues: false
+    serviceMonitorNamespaceSelector: {}
+    serviceMonitorSelector: {}
+    podMonitorSelectorNilUsesHelmValues: false
+    podMonitorNamespaceSelector: {}
+    podMonitorSelector: {}
+    ruleSelectorNilUsesHelmValues: false
+    ruleNamespaceSelector: {}
+    ruleSelector: {}
+    resources:
+      requests:
+        cpu: 250m
+        memory: 1Gi
+      limits:
+        cpu: 500m
+        memory: 2Gi
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          # Omit storageClassName in dev to use the cluster default provisioner.
+          resources:
+            requests:
+              storage: 10Gi
+
+grafana:
+  admin:
+    existingSecret: grafana-admin-credentials
+    userKey: admin-user
+    passwordKey: admin-password
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    annotations:
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    hosts:
+      - grafana.dev.platform.example.com # replace with the real dev hostname
+    tls:
+      - secretName: grafana-dev-tls
+        hosts:
+          - grafana.dev.platform.example.com
+  grafana.ini:
+    server:
+      domain: grafana.dev.platform.example.com
+      root_url: https://grafana.dev.platform.example.com
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+      searchNamespace: monitoring
+    datasources:
+      enabled: true
+      searchNamespace: monitoring
+  additionalDataSources:
+    - name: Loki
+      type: loki
+      access: proxy
+      url: http://loki-gateway.monitoring.svc.cluster.local
+      isDefault: false
+      jsonData:
+        maxLines: 1000
+  persistence:
+    enabled: false
+  resources:
+    requests:
+      cpu: 100m
+      memory: 192Mi
+    limits:
+      cpu: 250m
+      memory: 384Mi
+
+kube-state-metrics:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 150m
+      memory: 128Mi
+
+prometheus-node-exporter:
+  resources:
+    requests:
+      cpu: 25m
+      memory: 32Mi
+    limits:
+      cpu: 100m
+      memory: 64Mi

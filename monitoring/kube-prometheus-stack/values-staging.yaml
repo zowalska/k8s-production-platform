@@ -1,0 +1,177 @@
+# Staging profile for kube-prometheus-stack.
+# Sized to be closer to production while keeping a single Prometheus and
+# Alertmanager replica for cost-efficient pre-production validation.
+
+crds:
+  enabled: true
+
+prometheusOperator:
+  resources:
+    requests:
+      cpu: 150m
+      memory: 192Mi
+    limits:
+      cpu: 300m
+      memory: 384Mi
+
+alertmanager:
+  enabled: true
+  config:
+    global:
+      resolve_timeout: 5m
+    route:
+      group_by:
+        - alertname
+        - namespace
+        - severity
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 4h
+      receiver: platform-alerts
+    receivers:
+      - name: platform-alerts
+        slack_configs:
+          - channel: "#platform-alerts"
+            api_url_file: /etc/alertmanager/secrets/alertmanager-slack-webhook/url
+            send_resolved: true
+            title: '{{ template "slack.default.title" . }}'
+            text: '{{ template "slack.default.text" . }}'
+        webhook_configs:
+          - url: https://alerts.staging.platform.example.com/webhook # replace per environment
+            send_resolved: true
+    inhibit_rules:
+      - source_matchers:
+          - severity="critical"
+        target_matchers:
+          - severity=~"warning|info"
+        equal:
+          - alertname
+          - namespace
+  alertmanagerSpec:
+    replicas: 1
+    retention: 168h
+    secrets:
+      - alertmanager-slack-webhook
+    resources:
+      requests:
+        cpu: 150m
+        memory: 192Mi
+      limits:
+        cpu: 300m
+        memory: 384Mi
+    storage:
+      volumeClaimTemplate:
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          # Omit storageClassName in staging to use the cluster default provisioner.
+          resources:
+            requests:
+              storage: 5Gi
+
+prometheus:
+  prometheusSpec:
+    replicas: 1
+    retention: 7d
+    retentionSize: 40GB
+    scrapeInterval: 30s
+    evaluationInterval: 30s
+    walCompression: true
+    externalLabels:
+      environment: staging
+      cluster: platform-staging
+    serviceMonitorSelectorNilUsesHelmValues: false
+    serviceMonitorNamespaceSelector: {}
+    serviceMonitorSelector: {}
+    podMonitorSelectorNilUsesHelmValues: false
+    podMonitorNamespaceSelector: {}
+    podMonitorSelector: {}
+    ruleSelectorNilUsesHelmValues: false
+    ruleNamespaceSelector: {}
+    ruleSelector: {}
+    resources:
+      requests:
+        cpu: 500m
+        memory: 2Gi
+      limits:
+        cpu: "1"
+        memory: 4Gi
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          # Omit storageClassName in staging to use the cluster default provisioner.
+          resources:
+            requests:
+              storage: 50Gi
+
+grafana:
+  admin:
+    existingSecret: grafana-admin-credentials
+    userKey: admin-user
+    passwordKey: admin-password
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    annotations:
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    hosts:
+      - grafana.staging.platform.example.com # replace with the real staging hostname
+    tls:
+      - secretName: grafana-staging-tls
+        hosts:
+          - grafana.staging.platform.example.com
+  grafana.ini:
+    server:
+      domain: grafana.staging.platform.example.com
+      root_url: https://grafana.staging.platform.example.com
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+      searchNamespace: monitoring
+    datasources:
+      enabled: true
+      searchNamespace: monitoring
+  additionalDataSources:
+    - name: Loki
+      type: loki
+      access: proxy
+      url: http://loki-gateway.monitoring.svc.cluster.local
+      isDefault: false
+      jsonData:
+        maxLines: 1000
+  persistence:
+    enabled: true
+    type: pvc
+    accessModes:
+      - ReadWriteOnce
+    # Omit storageClassName in staging to use the cluster default provisioner.
+    size: 5Gi
+  resources:
+    requests:
+      cpu: 150m
+      memory: 256Mi
+    limits:
+      cpu: 300m
+      memory: 512Mi
+
+kube-state-metrics:
+  resources:
+    requests:
+      cpu: 75m
+      memory: 96Mi
+    limits:
+      cpu: 200m
+      memory: 192Mi
+
+prometheus-node-exporter:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 150m
+      memory: 128Mi

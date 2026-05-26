@@ -1,0 +1,155 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: platform-alert-rules
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: platform-alert-rules
+    app.kubernetes.io/part-of: platform
+spec:
+  groups:
+    - name: platform-api
+      rules:
+        - alert: HighErrorRate
+          expr: |
+            (
+              sum by (namespace) (
+                rate(api_http_requests_total{namespace=~"platform-.*", service="api", status_code=~"5.."}[5m])
+              )
+              /
+              clamp_min(
+                sum by (namespace) (
+                  rate(api_http_requests_total{namespace=~"platform-.*", service="api"}[5m])
+                ),
+                1
+              )
+            ) > 0.05
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            summary: API 5xx ratio is above 5%
+            description: api in {{ $labels.namespace }} has returned more than 5% 5xx responses for 10 minutes.
+            runbook_url: https://platform.example.com/runbooks/high-error-rate
+        - alert: HighRequestLatencyP99
+          expr: |
+            histogram_quantile(
+              0.99,
+              sum by (namespace, le) (
+                rate(api_http_request_duration_seconds_bucket{namespace=~"platform-.*", service="api"}[5m])
+              )
+            ) > 1
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: API p99 latency is above 1 second
+            description: api in {{ $labels.namespace }} has a 99th percentile request latency above 1s for 15 minutes.
+            runbook_url: https://platform.example.com/runbooks/high-request-latency-p99
+
+    - name: platform-worker
+      rules:
+        - alert: WorkerQueueBacklogHigh
+          expr: |
+            sum by (namespace, queue) (
+              worker_queue_jobs{namespace=~"platform-.*", service="worker", state="waiting"}
+            ) > 1000
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: Worker queue backlog is high
+            description: Queue {{ $labels.queue }} in {{ $labels.namespace }} has more than 1000 waiting BullMQ jobs for 15 minutes.
+            runbook_url: https://platform.example.com/runbooks/worker-queue-backlog-high
+
+    - name: platform-kubernetes
+      rules:
+        - alert: PodCrashLooping
+          expr: |
+            max by (namespace, pod, container) (
+              kube_pod_container_status_waiting_reason{namespace=~"(platform-.*|monitoring)", reason="CrashLoopBackOff"}
+            ) > 0
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: Pod is crash looping
+            description: Container {{ $labels.container }} in pod {{ $labels.namespace }}/{{ $labels.pod }} has been in CrashLoopBackOff for at least 15 minutes.
+            runbook_url: https://platform.example.com/runbooks/pod-crash-looping
+        - alert: PodMemoryNearLimit
+          expr: |
+            (
+              sum by (namespace, pod, container) (
+                container_memory_working_set_bytes{namespace=~"(platform-.*|monitoring)", container!="", container!="POD", image!=""}
+              )
+              /
+              sum by (namespace, pod, container) (
+                kube_pod_container_resource_limits{namespace=~"(platform-.*|monitoring)", resource="memory", unit="byte"} > 0
+              )
+            ) > 0.90
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: Pod memory usage is near its limit
+            description: Container {{ $labels.container }} in pod {{ $labels.namespace }}/{{ $labels.pod }} is using more than 90% of its memory limit.
+            runbook_url: https://platform.example.com/runbooks/pod-memory-near-limit
+        - alert: PVCAlmostFull
+          expr: |
+            (
+              (
+                kubelet_volume_stats_capacity_bytes{namespace=~"(platform-.*|monitoring)"}
+                - kubelet_volume_stats_available_bytes{namespace=~"(platform-.*|monitoring)"}
+              )
+              /
+              clamp_min(
+                kubelet_volume_stats_capacity_bytes{namespace=~"(platform-.*|monitoring)"},
+                1
+              )
+            ) > 0.85
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: PVC usage is above 85%
+            description: PVC {{ $labels.persistentvolumeclaim }} in {{ $labels.namespace }} is above 85% utilization.
+            runbook_url: https://platform.example.com/runbooks/pvc-almost-full
+        - alert: NodeDiskPressure
+          expr: |
+            max by (node) (
+              kube_node_status_condition{condition="DiskPressure", status="true"}
+            ) > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: Node reports disk pressure
+            description: Node {{ $labels.node }} has reported the DiskPressure condition for more than 5 minutes.
+            runbook_url: https://platform.example.com/runbooks/node-disk-pressure
+
+    - name: platform-dependencies
+      rules:
+        - alert: PostgresDown
+          expr: |
+            max by (namespace) (
+              pg_up{namespace=~"platform-.*"}
+            ) < 1
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: PostgreSQL exporter reports the database as down
+            description: PostgreSQL in {{ $labels.namespace }} has failed exporter connectivity checks for at least 5 minutes.
+            runbook_url: https://platform.example.com/runbooks/postgres-down
+        - alert: RedisDown
+          expr: |
+            max by (namespace) (
+              redis_up{namespace=~"platform-.*"}
+            ) < 1
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: Redis exporter reports the cache as down
+            description: Redis in {{ $labels.namespace }} has failed exporter connectivity checks for at least 5 minutes.
+            runbook_url: https://platform.example.com/runbooks/redis-down
