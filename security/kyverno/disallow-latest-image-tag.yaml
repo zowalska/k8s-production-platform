@@ -1,0 +1,55 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-latest-image-tag
+  annotations:
+    policies.kyverno.io/title: Disallow Latest Image Tag
+    policies.kyverno.io/category: Best Practices
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/description: >-
+      Requires every container image to reference an explicit, immutable
+      tag - never left untagged (which defaults to `:latest`) and never
+      `:latest` explicitly. This keeps Argo CD's rendered manifests
+      reproducible and makes rollbacks meaningful (see
+      .github/workflows/build-push.yml for how images are actually tagged:
+      branch, sha, semver).
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: require-image-tag
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaceSelector:
+                matchExpressions:
+                  - key: app.kubernetes.io/part-of
+                    operator: In
+                    values:
+                      - platform
+      validate:
+        message: "An explicit image tag is required."
+        pattern:
+          spec:
+            containers:
+              - image: "*:*"
+    - name: disallow-latest-tag
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaceSelector:
+                matchExpressions:
+                  - key: app.kubernetes.io/part-of
+                    operator: In
+                    values:
+                      - platform
+      validate:
+        message: "Using the mutable ':latest' image tag is not allowed."
+        pattern:
+          spec:
+            containers:
+              - image: "!*:latest"

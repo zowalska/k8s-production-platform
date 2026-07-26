@@ -5,5 +5,15 @@ metadata:
   labels:
     app.kubernetes.io/part-of: platform
     environment: dev
+    # Enforce the "restricted" Pod Security Standard (see
+    # https://kubernetes.io/docs/concepts/security/pod-security-standards/)
+    # at admission time - this is what actually rejects a Pod spec that
+    # doesn't match the securityContext hardening baked into
+    # kubernetes/base/*/deployment.yaml (non-root, no privilege escalation,
+    # all capabilities dropped, etc), not just the container's own defaults.
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
     # Referenced by NetworkPolicies elsewhere (e.g. monitoring namespace
     # selector) via the standard kubernetes.io/metadata.name label.

@@ -1,0 +1,33 @@
+# Helm values for the `kyverno/kyverno` chart (installed into the `kyverno`
+# namespace, typically via its own Argo CD Application alongside the
+# argocd/applications/*.yaml in this repo).
+#
+#   helm repo add kyverno https://kyverno.github.io/kyverno/
+#   helm install kyverno kyverno/kyverno -n kyverno --create-namespace -f kyverno-values.yaml
+#   kubectl apply -f security/kyverno/
+
+replicaCount: 3
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+# Fail closed: if the Kyverno admission webhook itself is unreachable, block
+# the request rather than silently allow it. Safe here because Kyverno runs
+# with 3 replicas across nodes.
+admissionController:
+  replicas: 3
+  failurePolicy: Fail
+
+backgroundController:
+  enabled: true
+
+reportsController:
+  enabled: true
+
+cleanupController:
+  enabled: true

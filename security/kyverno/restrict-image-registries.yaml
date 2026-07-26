@@ -1,0 +1,48 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: restrict-image-registries
+  annotations:
+    policies.kyverno.io/title: Restrict Image Registries for Platform Workloads
+    policies.kyverno.io/category: Supply Chain Security
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/description: >-
+      The `api` and `worker` images must come from this project's own GHCR
+      namespace, so nothing can slip an arbitrary image into a Deployment
+      that Argo CD manages. Scoped to app.kubernetes.io/name in
+      {api, worker} only, so it doesn't also try to constrain the
+      Bitnami postgresql/redis, Prometheus, Grafana, Loki, Vault or KEDA
+      images deployed alongside the app (those come from their own
+      well-known upstream registries/Helm charts).
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: restrict-registry
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaceSelector:
+                matchExpressions:
+                  - key: app.kubernetes.io/part-of
+                    operator: In
+                    values:
+                      - platform
+              selector:
+                matchExpressions:
+                  - key: app.kubernetes.io/name
+                    operator: In
+                    values:
+                      - api
+                      - worker
+      validate:
+        message: "api/worker images must be pulled from ghcr.io/zowalska/k8s-production-platform-*."
+        anyPattern:
+          - spec:
+              containers:
+                - image: "ghcr.io/zowalska/k8s-production-platform-api:*"
+          - spec:
+              containers:
+                - image: "ghcr.io/zowalska/k8s-production-platform-worker:*"
