@@ -81,10 +81,26 @@ terraform/            AWS infrastructure modules + per-environment stacks
 argocd/               Argo CD AppProject + Application manifests (app-of-apps)
 autoscaling/          KEDA, Cluster Autoscaler, VPA configuration
 security/vault/       HashiCorp Vault policies, roles, Helm values
+security/kyverno/     Kyverno policy-as-code (admission-time guardrails)
+security/namespaces/  Namespace manifests with Pod Security Admission labels
 monitoring/           Prometheus, Grafana dashboards, Loki/Promtail config
 .github/workflows/    CI, security scanning, build & push, Terraform, releases
 docs/                 Architecture notes, ADRs, runbooks
 ```
+
+## Getting started
+
+```sh
+make install        # npm install for both services
+make test            # run api + worker unit tests
+make compose-up       # full local stack: api + worker + postgres + redis
+make helm-lint        # lint the Helm chart against every environment
+```
+
+See [`docs/architecture.md`](docs/architecture.md) for a deeper walkthrough
+and [`docs/adr/`](docs/adr/) for the reasoning behind the less obvious
+choices (Helm as the GitOps artifact, Vault vs. External Secrets, Kyverno
+vs. OPA/Gatekeeper, KEDA for worker autoscaling, EKS on AWS).
 
 ## Environments
 
@@ -95,10 +111,12 @@ values overlay, promoted through Argo CD Applications.
 
 ## Status
 
-🚧 This platform is built incrementally, milestone by milestone — see the
-commit history for the build-out story, from initial scaffolding through
-infrastructure, delivery pipeline, autoscaling, secrets management, and full
-observability.
+✅ Feature-complete reference build: application services, containerization,
+Kubernetes manifests (Kustomize + Helm), Terraform infrastructure, full
+CI/CD pipeline, GitOps delivery via Argo CD, layered autoscaling, Vault
+secrets management, Kyverno policy-as-code, and a complete observability
+stack. See the commit history for the incremental build-out story, and
+[`CONTRIBUTING.md`](CONTRIBUTING.md) if you'd like to extend it further.
 
 ## License
 

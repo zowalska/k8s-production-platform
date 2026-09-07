@@ -7,16 +7,22 @@ architecture. This is the primary deployment path used by Argo CD - see
 
 ## Installing
 
+Argo CD's Application manifests (`argocd/applications/platform-*.yaml`) all
+install this chart with `helm.releaseName: platform` - only the destination
+namespace differs across dev/staging/prod - so the rendered resource names
+(`platform-api`, `platform-worker`, ...) are constant across environments,
+and only the namespace tells them apart. Mirror that when installing by hand:
+
 ```sh
 helm dependency update helm/platform
 
 # dev: fully self-contained, in-cluster Postgres/Redis
-helm upgrade --install platform-dev helm/platform \
+helm upgrade --install platform helm/platform \
   --namespace platform-dev --create-namespace \
   -f helm/platform/values.yaml -f helm/platform/values-dev.yaml
 
 # staging / prod: external RDS/ElastiCache (see terraform/), Vault-delivered secrets
-helm upgrade --install platform-prod helm/platform \
+helm upgrade --install platform helm/platform \
   --namespace platform-prod --create-namespace \
   -f helm/platform/values.yaml -f helm/platform/values-prod.yaml
 ```
