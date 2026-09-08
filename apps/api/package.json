@@ -11,7 +11,7 @@
     "test": "jest --runInBand --coverage"
   },
   "dependencies": {
-    "bullmq": "^5.12.0",
+    "bullmq": "^6.3.4",
     "cors": "^2.8.5",
     "express": "^4.19.2",
     "helmet": "^7.1.0",
