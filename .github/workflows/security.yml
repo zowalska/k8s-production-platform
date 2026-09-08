@@ -43,7 +43,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Scan repository filesystem
-        uses: aquasecurity/trivy-action@0.30.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
           scan-ref: .
@@ -84,7 +84,7 @@ jobs:
             apps/${{ matrix.service }}
 
       - name: Scan image with Trivy
-        uses: aquasecurity/trivy-action@0.30.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: image
           image-ref: ghcr.io/zowalska/k8s-production-platform-${{ matrix.service }}:security-${{ github.sha }}
