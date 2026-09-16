@@ -91,6 +91,13 @@ jobs:
           severity: HIGH,CRITICAL
           ignore-unfixed: true
           format: sarif
+          # By default trivy-action drops the severity filter entirely when
+          # format=sarif (so the SARIF/code-scanning view always shows every
+          # severity), which meant `exit-code: 1` below was actually failing
+          # this step on LOW/MEDIUM/UNKNOWN findings too, not just
+          # HIGH/CRITICAL as configured. This keeps the severity filter
+          # applied consistently so the build only fails on what we intend.
+          limit-severities-for-sarif: true
           output: trivy-image-${{ matrix.service }}.sarif
           exit-code: '1'
 
@@ -125,7 +132,16 @@ jobs:
           # `${{ github.workspace }}` absolute path (which doesn't exist
           # inside the container and previously caused "no such file or
           # directory", failing this step and every step after it).
-          additional_args: --out reports/tfsec-terraform.sarif
+          #
+          # --no-module-downloads: our eks/vpc modules reference the public
+          # terraform-aws-modules registry. Without this flag tfsec fetches
+          # and statically analyzes those external modules too, and embeds
+          # their (non-checkout-relative, sometimes git::-scheme) paths as
+          # SARIF artifact locations, which the upload step then rejects
+          # with "SARIF URI scheme ... did not match the checkout URI
+          # scheme". We only want tfsec gating our own IaC, not re-auditing
+          # third-party module internals.
+          additional_args: --out reports/tfsec-terraform.sarif --no-module-downloads
           soft_fail: true
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
