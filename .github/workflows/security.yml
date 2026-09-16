@@ -119,7 +119,13 @@ jobs:
         with:
           working_directory: terraform
           format: sarif
-          additional_args: --out ${{ github.workspace }}/reports/tfsec-terraform.sarif
+          # tfsec-action runs in a container that mounts the checkout at
+          # /github/workspace and cd's there before invoking tfsec, so the
+          # --out path must be relative to that mount - not the host-side
+          # `${{ github.workspace }}` absolute path (which doesn't exist
+          # inside the container and previously caused "no such file or
+          # directory", failing this step and every step after it).
+          additional_args: --out reports/tfsec-terraform.sarif
           soft_fail: true
           github_token: ${{ secrets.GITHUB_TOKEN }}
 

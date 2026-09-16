@@ -13,6 +13,16 @@ WORKDIR /app
 # Security Standard applied to the platform-* namespaces).
 RUN addgroup -S app && adduser -S app -G app
 
+# The base image bundles the global npm CLI (and its own vendored
+# dependencies, e.g. tar/minimatch/cross-spawn) under
+# /usr/local/lib/node_modules/npm - none of that is needed at runtime since
+# this container only ever runs `node src/index.js`. Removing it shrinks the
+# image and eliminates a recurring source of HIGH/CRITICAL CVEs reported by
+# Trivy against packages the app never actually executes.
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
+    /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack \
+    /opt/yarn* 2>/dev/null || true
+
 COPY --from=deps /app/node_modules ./node_modules
 COPY package.json ./
 COPY src ./src

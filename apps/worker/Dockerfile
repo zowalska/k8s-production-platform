@@ -11,6 +11,11 @@ WORKDIR /app
 
 RUN addgroup -S app && adduser -S app -G app
 
+# See apps/api/Dockerfile for why the bundled npm CLI is removed here.
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
+    /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack \
+    /opt/yarn* 2>/dev/null || true
+
 COPY --from=deps /app/node_modules ./node_modules
 COPY package.json ./
 COPY src ./src
