@@ -17,7 +17,9 @@ spec:
     metadata:
       labels:
         {{- include "platform.labels" . | nindent 8 }}
-        {{- include "platform.selectorLabels" (dict "root" $ "component" "worker") | nindent 8 }}
+        # See apps/api's deployment.yaml for why platform.selectorLabels
+        # isn't also included here (duplicate app.kubernetes.io/instance key).
+        app.kubernetes.io/name: worker
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/worker/configmap.yaml") . | sha256sum }}
         prometheus.io/scrape: "true"

@@ -17,7 +17,13 @@ spec:
     metadata:
       labels:
         {{- include "platform.labels" . | nindent 8 }}
-        {{- include "platform.selectorLabels" (dict "root" $ "component" "api") | nindent 8 }}
+        # Not using platform.selectorLabels here: it also sets
+        # app.kubernetes.io/instance, which platform.labels already sets -
+        # combining both would duplicate that key in this map. Only the
+        # component name is missing from platform.labels, so add it directly
+        # (this still matches spec.selector.matchLabels below, which is all
+        # Kubernetes requires of the pod template labels).
+        app.kubernetes.io/name: api
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/api/configmap.yaml") . | sha256sum }}
         prometheus.io/scrape: "true"
