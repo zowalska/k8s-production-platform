@@ -150,6 +150,7 @@ jobs:
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: reports/tfsec-terraform.sarif
+          category: tfsec-terraform
 
       - name: Run Checkov on Terraform
         uses: bridgecrewio/checkov-action@v12
@@ -166,6 +167,12 @@ jobs:
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: reports/checkov-terraform.sarif
+          # Explicit, distinct categories are required: this job uploads
+          # SARIF from the same tool (Checkov) three times, and without a
+          # unique category each upload after the first is rejected with
+          # "only one run of ... upload-sarif actions is allowed per job
+          # per tool/category".
+          category: checkov-terraform
 
       - name: Run Checkov on Kubernetes manifests
         uses: bridgecrewio/checkov-action@v12
@@ -182,6 +189,7 @@ jobs:
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: reports/checkov-kubernetes.sarif
+          category: checkov-kubernetes
 
       - name: Run Checkov on Helm chart
         uses: bridgecrewio/checkov-action@v12
@@ -198,6 +206,7 @@ jobs:
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: reports/checkov-helm.sarif
+          category: checkov-helm
 
   secrets-scan:
     name: Gitleaks
