@@ -21,15 +21,15 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@v4
         with:
           languages: javascript
 
       - name: Autobuild
-        uses: github/codeql-action/autobuild@v3
+        uses: github/codeql-action/autobuild@v4
 
       - name: Analyze
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@v4
 
   trivy-fs:
     name: Trivy filesystem scan
@@ -55,7 +55,7 @@ jobs:
 
       - name: Upload Trivy filesystem SARIF
         if: always()
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy-fs.sarif
 
@@ -103,7 +103,7 @@ jobs:
 
       - name: Upload image SARIF
         if: always()
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy-image-${{ matrix.service }}.sarif
 
@@ -147,7 +147,7 @@ jobs:
 
       - name: Upload tfsec SARIF
         if: always()
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: reports/tfsec-terraform.sarif
           category: tfsec-terraform
@@ -164,7 +164,7 @@ jobs:
 
       - name: Upload Checkov Terraform SARIF
         if: always()
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: reports/checkov-terraform.sarif
           # Explicit, distinct categories are required: this job uploads
@@ -186,7 +186,7 @@ jobs:
 
       - name: Upload Checkov Kubernetes SARIF
         if: always()
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: reports/checkov-kubernetes.sarif
           category: checkov-kubernetes
@@ -203,7 +203,7 @@ jobs:
 
       - name: Upload Checkov Helm SARIF
         if: always()
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: reports/checkov-helm.sarif
           category: checkov-helm
